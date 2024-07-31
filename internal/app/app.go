@@ -112,10 +112,8 @@ func (a *App) startHTTP() {
 		Debug:              false,
 	})
 
-	handler := c.Handler(a.router)
-
 	a.httpServer = &http.Server{
-		Handler:      handler,
+		Handler:      c.Handler(a.router),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}

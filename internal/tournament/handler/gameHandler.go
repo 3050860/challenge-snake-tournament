@@ -94,8 +94,7 @@ func (h *GameHandler) Start(response ehttp.ExtendedResponse, request ehttp.Exten
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(record)
-	return nil
+	return response.WriteJson(record)
 }
 
 // Enter game
@@ -134,8 +133,7 @@ func (h *GameHandler) EnterToGame(response ehttp.ExtendedResponse, request ehttp
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(record)
-	return nil
+	return response.WriteJson(record)
 }
 
 // Get games by user
@@ -169,8 +167,7 @@ func (h *GameHandler) FindGamesForCurrentUser(response ehttp.ExtendedResponse, r
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(dtos)
-	return nil
+	return response.WriteJson(dtos)
 }
 
 // Get active games by user
@@ -203,8 +200,7 @@ func (h *GameHandler) FindActiveGames(response ehttp.ExtendedResponse, request e
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(dtos)
-	return nil
+	return response.WriteJson(dtos)
 }
 
 // Send results for end game
@@ -254,8 +250,7 @@ func (h *GameHandler) PasteResults(response ehttp.ExtendedResponse, request ehtt
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(records)
-	return nil
+	return response.WriteJson(records)
 }
 
 // Send results for end game
@@ -294,8 +289,7 @@ func (h *GameHandler) CheckRenewAllowed(response ehttp.ExtendedResponse, request
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(result)
-	return nil
+	return response.WriteJson(result)
 }
 
 // Send results for end game
@@ -345,6 +339,5 @@ func (h *GameHandler) SetPrize(response ehttp.ExtendedResponse, request ehttp.Ex
 	}
 
 	response.WriteHeader(http.StatusOK)
-	response.WriteJson(record)
-	return nil
+	return response.WriteJson(record)
 }

@@ -28,7 +28,8 @@ func NewGameService(
 }
 
 func (s GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
-	logging.GetLogger().Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
+	log := logging.GetLogger()
+	log.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
 
 	game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
 
@@ -38,39 +39,33 @@ func (s GameService) Start(ctx context.Context, request dto.GameCreateRequest, u
 		defer lock.Unlock()
 
 		err := s.database.FindById(ctx, gameId, &game)
-
 		if err != nil {
 			return nil, err
 		}
 
-		logging.GetLogger().Debugf("Game found: %s, connect user: %d", game.Id, user.Id)
+		log.Debugf("Game found: %s, connect user: %d", game.Id, user.Id)
 		err = s.ticketService.CloseTicket(ctx, *game, user)
-
 		if err != nil {
-			logging.GetLogger().Debug("Ticket close error")
+			log.Debug("Ticket close error")
 			return nil, err
 		}
-
 		game.AddPlayer(user)
 
 		err = s.database.Update(ctx, game)
-
 		if err != nil {
 			return nil, err
 		}
-
-		logging.GetLogger().Debug("User connected")
+		log.Debug("User connected")
 
 		gameDto := game.ToGameDto()
 		return &gameDto, nil
 	}
 
-	logging.GetLogger().Debug("Game not found, create new")
+	log.Debug("Game not found, create new")
 
 	game = models.NewGame(request.PlayersAmount)
 
 	err := s.database.Create(ctx, game)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create record. error: %w", err)
 	}
@@ -80,30 +75,29 @@ func (s GameService) Start(ctx context.Context, request dto.GameCreateRequest, u
 	defer lock.Unlock()
 
 	err = s.database.FindById(ctx, gameId, &game)
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = s.ticketService.CloseTicket(ctx, *game, user)
-
 	if err != nil {
-		logging.GetLogger().Debug("Ticket close error")
-		s.database.Delete(ctx, game.Id)
+		log.Debug("Ticket close error")
+		if err := s.database.Delete(ctx, game.Id); err != nil {
+			log.Errorf("Delete:%v", game.Id)
+		}
 		return nil, err
 	}
 
-	logging.GetLogger().Debugf("Game created: %s, connect user: %d", game.Id, user.Id)
+	log.Debugf("Game created: %s, connect user: %d", game.Id, user.Id)
 
 	game.AddPlayer(user)
 
 	err = s.database.Update(ctx, game)
-
 	if err != nil {
 		return nil, err
 	}
 
-	logging.GetLogger().Debug("User connected")
+	log.Debug("User connected")
 
 	gameDto := game.ToGameDto()
 	return &gameDto, nil
@@ -111,57 +105,51 @@ func (s GameService) Start(ctx context.Context, request dto.GameCreateRequest, u
 
 func (s GameService) EnterToGame(ctx context.Context, id string, user dto.User) (*dto.GameDto, error) {
 	lock := s.editMutex.Lock(id)
+	log := logging.GetLogger()
 
-	logging.GetLogger().Debugf("Connect user: %d to game: %s", user.Id, id)
+	log.Debugf("Connect user: %d to game: %s", user.Id, id)
 
 	var game models.Game
-	err := s.database.FindById(ctx, id, &game)
-
-	if err != nil {
+	if err := s.database.FindById(ctx, id, &game); err != nil {
 		lock.Unlock()
 		return nil, err
 	}
 
 	if game.IsCloseToEnter(user) {
-		logging.GetLogger().Debug("Connection failed, search new game")
+		log.Debug("Connection failed, search new game")
 		lock.Unlock()
 		return s.Start(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
 	}
 
-	err = s.ticketService.CloseTicket(ctx, game, user)
-
-	if err != nil {
-		logging.GetLogger().Debug("Ticket close error")
+	if err := s.ticketService.CloseTicket(ctx, game, user); err != nil {
+		log.Debug("Ticket close error")
 		lock.Unlock()
 		return nil, err
 	}
 
 	game.AddPlayer(user)
-
-	err = s.database.Update(ctx, &game)
-
+	err := s.database.Update(ctx, &game)
 	if err != nil {
 		lock.Unlock()
 		return nil, err
 	}
 
-	logging.GetLogger().Debug("User connected")
+	log.Debug("User connected")
 	gameDto := game.ToGameDto()
 	lock.Unlock()
 	return &gameDto, nil
 }
 
 func (s GameService) GetGamesForCurrentUser(ctx context.Context, user dto.User) ([]dto.ResultGameDto, error) {
-	logging.GetLogger().Debugf("Search games for user: %s", user.Id)
+	log := logging.GetLogger()
+	log.Debugf("Search games for user: %s", user.Id)
 
 	games, err := s.database.FindGameByIncludeUser(ctx, user.Id)
-
 	if err != nil {
 		return nil, err
 	}
 
 	response := make([]dto.ResultGameDto, len(games))
-
 	for i := range games {
 		response[i] = games[i].ToResultGameDto(user)
 	}
@@ -170,12 +158,11 @@ func (s GameService) GetGamesForCurrentUser(ctx context.Context, user dto.User) 
 }
 
 func (s GameService) GetActiveGame(ctx context.Context, user dto.User) ([]dto.GameDto, error) {
-	logging.GetLogger().Debugf("Search available games for user: %s", user.Id)
+	log := logging.GetLogger()
+	log.Debugf("Search available games for user: %s", user.Id)
 
 	games := s.database.FindAvailableToEnterGames(ctx, user.Id)
-
 	response := make([]dto.GameDto, 0, len(games))
-
 	for i := 0; i < len(games); i++ {
 		response = append(response, games[i].ToGameDto())
 	}
@@ -187,20 +174,19 @@ func (s GameService) PasteResults(ctx context.Context, id string, request dto.Re
 	lock := s.editMutex.Lock(id)
 	defer lock.Unlock()
 
-	logging.GetLogger().Debugf("Paste results to game: %s, by user: %s, result: %d", id, user.Id, request.UserScore)
+	log := logging.GetLogger()
+	log.Debugf("Paste results to game: %s, by user: %s, result: %d", id, user.Id, request.UserScore)
 
 	var game models.Game
-	err := s.database.FindById(ctx, id, &game)
-
-	if err != nil {
+	if err := s.database.FindById(ctx, id, &game); err != nil {
 		return nil, err
 	}
 
-	game.PasteResults(user, request)
+	if err := game.PasteResults(user, request); err != nil {
+		return nil, err
+	}
 
-	err = s.database.Update(ctx, &game)
-
-	if err != nil {
+	if err := s.database.Update(ctx, &game); err != nil {
 		return nil, err
 	}
 
@@ -208,10 +194,10 @@ func (s GameService) PasteResults(ctx context.Context, id string, request dto.Re
 }
 
 func (s GameService) CheckAvailableRenew(ctx context.Context, id string, user dto.User) (bool, error) {
-	logging.GetLogger().Debugf("Check available renew record to game: %s, by user: %s", id, user.Id)
+	log := logging.GetLogger()
+	log.Debugf("Check available renew record to game: %s, by user: %s", id, user.Id)
 	var game models.Game
 	err := s.database.FindById(ctx, id, &game)
-
 	if err != nil {
 		return false, err
 	}
@@ -223,24 +209,22 @@ func (s GameService) SetPrize(ctx context.Context, id string, request dto.Select
 	lock := s.editMutex.Lock(id)
 	defer lock.Unlock()
 
-	logging.GetLogger().Debugf("Set prize to game: %s, by user: %s", id, user.Id)
+	log := logging.GetLogger()
+	log.Debugf("Set prize to game: %s, by user: %s", id, user.Id)
 
 	var game models.Game
-	err := s.database.FindById(ctx, id, &game)
-
-	if err != nil {
+	if err := s.database.FindById(ctx, id, &game); err != nil {
 		return nil, err
 	}
 
-	game.SetPrizeForUser(user, request.PrizeId, request.Email)
+	if err := game.SetPrizeForUser(user, request.PrizeId, request.Email); err != nil {
+		return nil, err
+	}
 
-	err = s.database.Update(ctx, &game)
-
-	if err != nil {
+	if err := s.database.Update(ctx, &game); err != nil {
 		return nil, err
 	}
 
 	response := game.ToResultGameDto(user)
-
 	return &response, nil
 }

@@ -1,6 +1,6 @@
 package config
 
 const (
-	ListenTypePort = "port"
+	//ListenTypePort = "port"
 	ListenTypeSock = "sock"
 )
