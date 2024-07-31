@@ -1,0 +1,145 @@
+definitions:
+  custom_error.Error:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.GameCreateRequest:
+    properties:
+      players_amount:
+        type: integer
+    type: object
+  dto.GameDto:
+    properties:
+      end_time:
+        type: string
+      id:
+        type: string
+      players_amount:
+        type: integer
+      start_time:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/snake-tournament/find-active:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.GameDto'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/custom_error.Error'
+      summary: Get active games by user
+      tags:
+      - Records
+  /api/v1/snake-tournament/find-my:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.GameDto'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/custom_error.Error'
+      summary: Get games by user
+      tags:
+      - Records
+  /api/v1/snake-tournament/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: create record struct
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/custom_error.Error'
+      summary: Send results for end game
+      tags:
+      - Records
+  /api/v1/snake-tournament/start/{id}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: create record struct
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/custom_error.Error'
+      summary: Find game by params or create if not found
+      tags:
+      - Records
+  /userapi/heartbeat:
+    get:
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+      summary: Heartbeat metric
+      tags:
+      - Metrics
+swagger: "2.0"

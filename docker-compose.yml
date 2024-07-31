@@ -1,0 +1,46 @@
+version: '3.7'
+
+services:
+  snake-tournament-service:
+    image: registry.gitlab.com/${CI_PROJECT_PATH}:production
+    container_name: ${SNAKE_TOURNAMENT_SERVICE_HOST}
+    networks:
+      - geteway
+      - snake-tournament
+    environment:
+      - IS_DEBUG
+      - IS_DEV
+      - SOCKET_FILE
+      - LISTEN_TYPE
+      - BIND_IP
+      - PORT
+      - LOG_LEVEL
+      - MONGO_URL=mongodb://snake-tournament-mongodb
+      - TICKETS_SERVICE_HOST
+      - USERS_SERVICE_HOST
+      - MONGODB_USERNAME
+      - MONGODB_PASSWORD
+    restart: unless-stopped
+    depends_on:
+      - snake-tournament-mongodb
+  
+  snake-tournament-mongodb:
+    image: mongo:4.4.18
+    container_name: "snake-tournament-mongodb"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+    ports:
+      - 27022:27017
+    networks:
+      - snake-tournament
+    volumes: 
+      - /data/db/snake-tournament-db:/data/db
+    restart: unless-stopped
+
+networks:
+  geteway:
+    external: true
+  snake-tournament:
+    driver: bridge
+
