@@ -1,7 +1,7 @@
 DEST:="root@81.200.152.157"
 
 lint:
-	golangci-lint run
+	golangci-lint run --fix
 
 serve:
 	go run cmd/app/main.go
@@ -9,10 +9,10 @@ serve:
 build: clean $(APP_BIN)
 
 $(APP_BIN):
-	go build -o $(APP_BIN) ./app/cmd/app/main.go
+	go GOOS=linux  GOARCH=amd64 build -o $(APP_BIN) ./app/cmd/app/main.go
 
 bin/snake-tournament: clean
-	env GOOS=linux go  build -o bin/snake-tournament cmd/app/main.go
+	env GOOS=linux GOARCH=amd64 go  build -o bin/snake-tournament cmd/app/main.go
 
 deploy: bin/snake-tournament
 	scp bin/snake-tournament $(DEST):/opt/challenge/snake-tournament/
@@ -23,7 +23,7 @@ clean:
 	rm -rf ./app/build || true
 
 swagger:
-	swag init -g ./cmd/app/main.go --exclude go -o ./docs
+	swag init --parseDependency --parseInternal -g ./cmd/app/main.go --exclude go -o ./docs
 
 migrate:
 	$(APP_BIN) migrate -version $(version)
