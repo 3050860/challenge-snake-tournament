@@ -1,4 +1,4 @@
-DEST:="root@81.200.152.157"
+all: build deploy
 
 lint:
 	golangci-lint run --fix
@@ -6,17 +6,17 @@ lint:
 serve:
 	go run cmd/app/main.go
 
-build: clean $(APP_BIN)
-
-$(APP_BIN):
-	go GOOS=linux  GOARCH=amd64 build -o $(APP_BIN) ./app/cmd/app/main.go
+build: clean bin/snake-tournament
 
 bin/snake-tournament: clean
 	env GOOS=linux GOARCH=amd64 go  build -o bin/snake-tournament cmd/app/main.go
 
 deploy: bin/snake-tournament
-	scp bin/snake-tournament $(DEST):/opt/challenge/snake-tournament/
-	# scp .env $(DEST):/opt/challenge/users-service.env
+	mkdir -p /opt/challenge/snake-tournament
+	cd /opt/challenge && docker compose stop
+	cp bin/snake-tournament /opt/challenge/snake-tournament/
+	#cp .env /opt/challenge/users-service.env
+	cd /opt/challenge && docker compose start
 
 clean:
 	rm -rf bin/* || true
@@ -33,3 +33,6 @@ migrate.down:
 
 migrate.up:
 	$(APP_BIN) migrate -seq up
+
+mockery:
+	go tool mockery

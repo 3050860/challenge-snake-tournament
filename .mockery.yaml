@@ -1,0 +1,14 @@
+all: false
+dir: internal/mocks
+filename: '{{.InterfaceName}}.go'
+force-file-write: false
+formatter: goimports
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: 'mocks'
+recursive: false
+template: testify
+packages:
+  snake-tournament/internal/iface:
+    config:
+      all: true

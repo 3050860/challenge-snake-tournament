@@ -15,79 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/snake-tournament/find-active": {
-            "get": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Records"
-                ],
-                "summary": "Get active games by user",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.GameDto"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/custom_error.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/snake-tournament/find-my": {
-            "get": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Records"
-                ],
-                "summary": "Get games by user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003cAdd access token here\u003e",
-                        "description": "Insert your access token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.GameDto"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/custom_error.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/snake-tournament/start": {
+        "/api/v1/snake-tournament/check-renew-record-allowed/:id": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -96,7 +24,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Records"
+                    "snake"
                 ],
                 "summary": "Send results for end game",
                 "parameters": [
@@ -116,6 +44,67 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.GameCreateRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameDto"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ehttp.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snake-tournament/create-record/:id": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "snake"
+                ],
+                "summary": "Send results for end game",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd access token here\u003e",
+                        "description": "Insert your access token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "create record struct",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -128,13 +117,85 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/custom_error.Error"
+                            "$ref": "#/definitions/ehttp.Error"
                         }
                     }
                 }
             }
         },
-        "/api/v1/snake-tournament/start/{id}": {
+        "/api/v1/snake-tournament/find-active": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "snake"
+                ],
+                "summary": "Get active games by user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GameDto"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ehttp.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snake-tournament/find-my": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "snake"
+                ],
+                "summary": "Get own games",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd access token here\u003e",
+                        "description": "Insert your access token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GameDto"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ehttp.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snake-tournament/select-prize/:id": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -143,7 +204,61 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Records"
+                    "snake"
+                ],
+                "summary": "Send results for end game",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd access token here\u003e",
+                        "description": "Insert your access token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "create record struct",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameDto"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ehttp.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snake-tournament/start": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "snake"
                 ],
                 "summary": "Find game by params or create if not found",
                 "parameters": [
@@ -172,10 +287,64 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GameDto"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/custom_error.Error"
+                            "$ref": "#/definitions/ehttp.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/snake-tournament/start/{id}": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "snake"
+                ],
+                "summary": "Find game by params or create if not found",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd access token here\u003e",
+                        "description": "Insert your access token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "create record struct",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameDto"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/ehttp.Error"
                         }
                     }
                 }
@@ -199,14 +368,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "custom_error.Error": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
         "dto.GameCreateRequest": {
             "type": "object",
             "properties": {
@@ -231,6 +392,14 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "ehttp.Error": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
         }
     }
 }`
@@ -245,8 +414,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
-	//LeftDelim:        "{{",
-	//RightDelim:       "}}",
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {
