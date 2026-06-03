@@ -1,9 +1,4 @@
 definitions:
-  custom_error.Error:
-    properties:
-      message:
-        type: string
-    type: object
   dto.GameCreateRequest:
     properties:
       players_amount:
@@ -20,9 +15,86 @@ definitions:
       start_time:
         type: string
     type: object
+  ehttp.Error:
+    properties:
+      message:
+        type: string
+    type: object
 info:
   contact: {}
 paths:
+  /api/v1/snake-tournament/check-renew-record-allowed/:id:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: create record struct
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameCreateRequest'
+      - description: id
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDto'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ehttp.Error'
+      summary: Send results for end game
+      tags:
+      - snake
+  /api/v1/snake-tournament/create-record/:id:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: create record struct
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameCreateRequest'
+      - description: id
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ehttp.Error'
+      summary: Send results for end game
+      tags:
+      - snake
   /api/v1/snake-tournament/find-active:
     get:
       consumes:
@@ -39,10 +111,10 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/custom_error.Error'
+            $ref: '#/definitions/ehttp.Error'
       summary: Get active games by user
       tags:
-      - Records
+      - snake
   /api/v1/snake-tournament/find-my:
     get:
       consumes:
@@ -63,13 +135,49 @@ paths:
             items:
               $ref: '#/definitions/dto.GameDto'
             type: array
-        "400":
-          description: Bad Request
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/custom_error.Error'
-      summary: Get games by user
+            $ref: '#/definitions/ehttp.Error'
+      summary: Get own games
       tags:
-      - Records
+      - snake
+  /api/v1/snake-tournament/select-prize/:id:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: create record struct
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameCreateRequest'
+      - description: id
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDto'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/ehttp.Error'
+      summary: Send results for end game
+      tags:
+      - snake
   /api/v1/snake-tournament/start:
     post:
       consumes:
@@ -94,13 +202,13 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.GameDto'
-        "400":
-          description: Bad Request
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/custom_error.Error'
-      summary: Send results for end game
+            $ref: '#/definitions/ehttp.Error'
+      summary: Find game by params or create if not found
       tags:
-      - Records
+      - snake
   /api/v1/snake-tournament/start/{id}:
     post:
       consumes:
@@ -118,6 +226,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/dto.GameCreateRequest'
+      - description: id
+        in: path
+        name: type
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -125,13 +238,13 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.GameDto'
-        "400":
-          description: Bad Request
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/custom_error.Error'
+            $ref: '#/definitions/ehttp.Error'
       summary: Find game by params or create if not found
       tags:
-      - Records
+      - snake
   /userapi/heartbeat:
     get:
       responses:

@@ -6,3 +6,7 @@ type User struct {
 	Email    string   `json:"email"`
 	Roles    []string `json:"roles"`
 }
+
+func (u User) GetId() string {
+	return u.Id
+}

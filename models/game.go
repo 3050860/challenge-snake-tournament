@@ -1,6 +1,9 @@
 package models
 
 import (
+	"github.com/alexsuslov/ehttp"
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"net/http"
 	"snake-tournament/internal/config"
 	"snake-tournament/models/dto"
@@ -11,11 +14,19 @@ import (
 )
 
 type Game struct {
-	Id            string     `bson:"_id,omitempty"`
-	PlayersAmount int        `bson:"players_amount"`
-	Records       []Record   `bson:"records"`
-	StartTime     time.Time  `bson:"start_time"`
-	CloseTime     *time.Time `bson:"close_time"`
+	Id            bson.ObjectID `bson:"_id,omitempty"`
+	PlayersAmount int           `bson:"players_amount"`
+	Records       []Record      `bson:"records"`
+	StartTime     time.Time     `bson:"start_time"`
+	CloseTime     *time.Time    `bson:"close_time"`
+}
+
+func (g *Game) GetType() string {
+	return "snake"
+}
+
+func (g *Game) GetPlayersAmount() int {
+	return g.PlayersAmount
 }
 
 func NewGame(playersAmount int) *Game {
@@ -31,13 +42,13 @@ func NewGame(playersAmount int) *Game {
 	return &game
 }
 
-func (g Game) GetStartTime() time.Time {
+func (g *Game) GetStartTime() time.Time {
 	now := time.Now()
 
 	return time.Date(g.StartTime.Year(), g.StartTime.Month(), g.StartTime.Day(), g.StartTime.Hour(), 0, 0, 0, now.Location())
 }
 
-func (g Game) GetEndTime() time.Time {
+func (g *Game) GetEndTime() time.Time {
 	now := time.Now()
 
 	if g.CloseTime != nil {
@@ -53,12 +64,12 @@ func (g Game) GetEndTime() time.Time {
 	return endTime
 }
 
-func (r Game) GetId() string {
-	return r.Id
+func (g *Game) GetId() string {
+	return g.Id.Hex()
 }
 
-func (r *Game) SetId(id string) {
-	r.Id = id
+func (g *Game) SetId(id string) {
+	g.Id, _ = bson.ObjectIDFromHex(id)
 }
 
 func (g *Game) AddPlayer(user dto.User) {
@@ -204,7 +215,7 @@ func (g *Game) ToResultGameDto(user dto.User) dto.ResultGameDto {
 	}
 
 	return dto.ResultGameDto{
-		Id:            g.Id,
+		Id:            g.GetId(),
 		StartTime:     g.GetStartTime(),
 		EndTime:       g.GetEndTime(),
 		PlayersAmount: g.PlayersAmount,
@@ -219,7 +230,7 @@ func (g *Game) ToResultGameDto(user dto.User) dto.ResultGameDto {
 
 func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) error {
 	if time.Now().After(g.GetEndTime()) {
-		return &Error{
+		return &ehttp.Error{
 			Message: "This game is closed",
 			Code:    http.StatusNotFound,
 			Err:     nil,
@@ -229,7 +240,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 	record := g.FindPlayerResult(user)
 
 	if record == nil {
-		return &Error{
+		return &ehttp.Error{
 			Message: "This game is unavailable for current user",
 			Code:    http.StatusNotFound,
 			Err:     nil,
@@ -237,7 +248,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 	}
 
 	if record.UpdatesAmount >= 3 {
-		return &Error{
+		return &ehttp.Error{
 			Message: "This game is unavailable for current user",
 			Code:    http.StatusNotFound,
 			Err:     nil,
@@ -277,7 +288,7 @@ func (g *Game) ToRecordsDto() []dto.RecordDto {
 
 func (g *Game) ToGameDto() dto.GameDto {
 	return dto.GameDto{
-		Id:            g.Id,
+		Id:            g.GetId(),
 		PlayersAmount: g.PlayersAmount,
 		StartTime:     g.GetStartTime(),
 		EndTime:       g.GetEndTime(),
@@ -288,7 +299,7 @@ func (g *Game) SetPrizeForUser(user dto.User, prizeId int, email string) error {
 	place := g.FindPlayerPlace(user)
 
 	if place == -1 {
-		return &Error{
+		return &ehttp.Error{
 			Message: "User not in game",
 			Code:    http.StatusForbidden,
 			Err:     nil,
@@ -296,7 +307,7 @@ func (g *Game) SetPrizeForUser(user dto.User, prizeId int, email string) error {
 	}
 
 	if g.FindPlayerResult(user).Prize != nil {
-		return &Error{
+		return &ehttp.Error{
 			Message: "Prize already selected",
 			Code:    http.StatusForbidden,
 			Err:     nil,
@@ -310,7 +321,7 @@ func (g *Game) SetPrizeForUser(user dto.User, prizeId int, email string) error {
 	})
 
 	if giftIndex == -1 {
-		return &Error{
+		return &ehttp.Error{
 			Message: "Prize not available",
 			Code:    http.StatusForbidden,
 			Err:     nil,

@@ -2,12 +2,13 @@ package handler
 
 import (
 	"context"
-	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"snake-tournament/models"
 	"snake-tournament/models/dto"
 	"snake-tournament/pkg/ehttp"
 	"snake-tournament/pkg/logging"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 type GameService interface {
@@ -60,7 +61,6 @@ func NewRecordHandler(service GameService, router *httprouter.Router, userServic
 // @Router /api/v1/snake-tournament/start [post]
 func (h *GameHandler) Start(response ehttp.ExtendedResponse, request ehttp.ExtendedRequest) error {
 	defer request.Body.Close()
-
 	logging.GetLogger().Debugf("Receive %s request on %s url: %s", request.Method, request.RequestURI, request.Body)
 
 	var requestEntity dto.GameCreateRequest
@@ -181,7 +181,7 @@ func (h *GameHandler) FindGamesForCurrentUser(response ehttp.ExtendedResponse, r
 func (h *GameHandler) FindActiveGames(response ehttp.ExtendedResponse, request ehttp.ExtendedRequest) error {
 	defer request.Body.Close()
 
-	logging.GetLogger().Debugf("Receive %s request on %s url: %s", request.Method, request.RequestURI, request.Body)
+	// logging.GetLogger().Debugf("Receive %s request on %s url: %s", request.Method, request.RequestURI, request.Body)
 
 	var user dto.User
 	err := request.ExtractUser(&user)

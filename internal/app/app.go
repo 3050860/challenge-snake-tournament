@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"snake-tournament/internal/clients/mongodb"
 	"snake-tournament/internal/config"
-	"snake-tournament/internal/tournament/database"
-	"snake-tournament/internal/tournament/handler"
-	"snake-tournament/internal/tournament/service"
+	"snake-tournament/internal/handlers"
+	"snake-tournament/internal/repository"
+	"snake-tournament/internal/services"
 	"snake-tournament/pkg/metrics"
-	"snake-tournament/pkg/mongodb_client"
 	"time"
+
+	"github.com/alexsuslov/ehttp/pkg/hticket"
+	"github.com/sirupsen/logrus"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
@@ -35,17 +37,21 @@ func NewApp(cfg *config.Config) (App, error) {
 	router.Handler(http.MethodGet, "/swagger/*any", httpSwagger.WrapHandler)
 	metricHandler := metrics.Handler{}
 	metricHandler.Register(router)
-	mongodbClient, err := mongodb_client.NewClient(context.Background(), cfg.MongoDB.ConnectString, cfg.MongoDB.Database, cfg.MongoDB.AuthDatabase, cfg.MongoDB.Username, cfg.MongoDB.Password)
+
+	logrus.Info("connect mongodb")
+	mongodbClient, err := mongodb.NewClient(context.Background(), cfg.MongoDB.ConnectString, cfg.MongoDB.Database, cfg.MongoDB.AuthDatabase, cfg.MongoDB.Username, cfg.MongoDB.Password)
 	if err != nil {
 		panic(err)
 	}
 
-	ticketService := service.NewTicketService(cfg)
-	gamesDatabase := database.NewGamesDatabase(mongodbClient, cfg.MongoDB.Collection)
-	gameService := service.NewGameService(*gamesDatabase, ticketService)
+	//ticketService := ticket.NewTicketService(cfg)
+	// http ticker service
+	ticketService := hticket.NewHService(cfg.HTicketConfig)
+	gamesRepo := repository.NewGames(mongodbClient, cfg.MongoDB.Collection)
+	gameService := services.NewGameService(gamesRepo, ticketService)
 
-	userService := service.NewUserService(cfg)
-	handler.NewRecordHandler(gameService, router, userService)
+	//userService := service.NewUserService(cfg)
+	handlers.NewRecordHandler(gameService, router)
 
 	return App{
 		cfg,

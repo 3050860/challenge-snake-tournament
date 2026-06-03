@@ -1,0 +1,12 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+== Initialization ==
+user -> service: start
+service --> service: find game
+== if not found ==
+service --> service: create game
+== end ==
+@enduml

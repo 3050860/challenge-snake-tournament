@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/alexsuslov/ehttp/pkg/hticket"
 	"log"
 	"sync"
 
@@ -34,6 +35,7 @@ type Config struct {
 	UserService struct {
 		Host string `env:"USERS_SERVICE_HOST" env-default:"localhost:10002"`
 	}
+	HTicketConfig hticket.Config
 	TicketService struct {
 		Host string `env:"TICKETS_SERVICE_HOST" env-default:"localhost:10004"`
 	}
