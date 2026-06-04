@@ -13,10 +13,10 @@ bin/snake-tournament: clean
 
 deploy: bin/snake-tournament
 	mkdir -p /opt/challenge/snake-tournament
-	cd /opt/challenge && docker compose stop
+	cd /opt/challenge && docker compose stop snake-tournament
 	cp bin/snake-tournament /opt/challenge/snake-tournament/
 	#cp .env /opt/challenge/users-service.env
-	cd /opt/challenge && docker compose start
+	cd /opt/challenge && docker compose start snake-tournament
 
 clean:
 	rm -rf bin/* || true

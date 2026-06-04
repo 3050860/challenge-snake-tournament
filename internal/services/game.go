@@ -26,8 +26,7 @@ func NewGameService(database iface.IGameRepository, ticketService iface.ITickets
 }
 
 func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
-	//log := logging.GetLogger()
-	//log.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
+	logrus.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
 
 	game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
 
@@ -41,7 +40,8 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 			return nil, err
 		}
 
-		//log.Debugf("Game found: %s, connect user: %d", game.Id, user.Id)
+		logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s] connect user: %d",
+			game.Id, game.StartTime, game.CloseTime, user.Id)
 		err = s.ticketService.CloseTicket(ctx, game, user)
 		if err != nil {
 			//log.Debug("Ticket close error")
@@ -53,14 +53,13 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 		if err != nil {
 			return nil, err
 		}
-		//log.Debug("User connected")
+		logrus.Debug("User connected to existing game")
 
 		gameDto := game.ToGameDto()
 		return &gameDto, nil
 	}
 
-	//log.Debug("Game not found, create new")
-
+	logrus.Debug("Game not found, try to create new")
 	game = models.NewGame(request.PlayersAmount)
 
 	err := s.database.Create(ctx, game)
@@ -86,16 +85,15 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 		return nil, err
 	}
 
-	//log.Debugf("Game created: %s, connect user: %d", game.Id, user.Id)
-
+	logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s] connect user: %d",
+		game.Id, game.StartTime, game.CloseTime, user.Id)
 	game.AddPlayer(user)
-
 	err = s.database.Update(ctx, game)
 	if err != nil {
 		return nil, err
 	}
 
-	//log.Debug("User connected")
+	logrus.Debug("User connected to new game")
 
 	gameDto := game.ToGameDto()
 	return &gameDto, nil
