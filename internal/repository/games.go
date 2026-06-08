@@ -28,9 +28,12 @@ func (d *GamesDatabase) FindAvailableToEnterGame(ctx context.Context, playerCoun
 	now := time.Now()
 	filter := bson.D{
 		{Key: "players_amount", Value: playerCount},
-		{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}},
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}}},
+			bson.D{{Key: "close_time", Value: nil}},
+		}},
 		{Key: "$expr", Value: bson.D{
-			{Key: "$lte", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, playerCount}},
+			{Key: "$lt", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, playerCount}},
 		}},
 		{Key: "records", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "user_id", Value: userId}}}}}}},
 	}
@@ -47,7 +50,10 @@ func (d *GamesDatabase) FindAvailableToEnterGames(ctx context.Context, userId st
 	now := time.Now()
 
 	filter := bson.D{
-		{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}},
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}}},
+			bson.D{{Key: "close_time", Value: nil}},
+		}},
 		{Key: "$expr", Value: bson.D{
 			{Key: "$lt", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, "$players_amount"}},
 		}},

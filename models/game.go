@@ -125,6 +125,9 @@ func (g *Game) IsCloseToEnter(user dto.User) bool {
 	return len(g.Records) >= g.PlayersAmount
 }
 
+func (g *Game) FullPlayers() bool {
+	return len(g.Records) >= g.PlayersAmount
+}
 func (g *Game) FindPlayerPlace(user dto.User) int {
 	return slices.IndexFunc(g.GetSortedRecords(), func(current Record) bool {
 		return current.UserId == user.Id

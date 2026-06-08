@@ -28,72 +28,50 @@ func NewGameService(database iface.IGameRepository, ticketService iface.ITickets
 func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
 	logrus.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
 
+	lock := s.editMutex.Lock(user.Id)
+	defer lock.Unlock()
+	var gameId string
+	// var newGame bool
+	newGame := false
 	game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
 
-	if game != nil {
-		gameId := game.GetId()
-		lock := s.editMutex.Lock(gameId)
-		defer lock.Unlock()
+	if game == nil {
+		logrus.Debug("Games not found, will create new")
 
-		err := s.database.FindById(ctx, gameId, game)
+		game = models.NewGame(request.PlayersAmount)
+		err := s.database.Create(ctx, game)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create record. error: %w", err)
 		}
-
-		logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s] connect user: %d",
-			game.Id, game.StartTime, game.CloseTime, user.Id)
-		err = s.ticketService.CloseTicket(ctx, game, user)
-		if err != nil {
-			//log.Debug("Ticket close error")
-			return nil, err
-		}
-		game.AddPlayer(user)
-
-		err = s.database.Update(ctx, game)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Debug("User connected to existing game")
-
-		gameDto := game.ToGameDto()
-		return &gameDto, nil
+		gameId = game.GetId()
+		newGame = true
+	} else {
+		gameId = game.GetId()
+		logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s, new=%s] connect user: %d",
+			game.Id, game.StartTime, game.CloseTime, newGame, user.Id)
 	}
 
-	logrus.Debug("Game not found, try to create new")
-	game = models.NewGame(request.PlayersAmount)
-
-	err := s.database.Create(ctx, game)
+	// lock = s.editMutex.Lock(gameId)
+	err := s.ticketService.CloseTicket(ctx, game, user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create record. error: %w", err)
-	}
-
-	gameId := game.GetId()
-	lock := s.editMutex.Lock(gameId)
-	defer lock.Unlock()
-
-	err = s.database.FindById(ctx, gameId, game)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.ticketService.CloseTicket(ctx, game, user)
-	if err != nil {
-		//log.Debug("Ticket close error")
+		logrus.Debug("Ticket close error")
 		if err := s.database.Delete(ctx, game.Id); err != nil {
 			//log.Errorf("Delete:%v", game.Id)
 		}
 		return nil, err
 	}
-
-	logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s] connect user: %d",
-		game.Id, game.StartTime, game.CloseTime, user.Id)
 	game.AddPlayer(user)
+
 	err = s.database.Update(ctx, game)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.Debug("User connected to new game")
+	err = s.database.FindById(ctx, gameId, game)
+	if err != nil {
+		return nil, err
+	}
+	// lock.Unlock()
 
 	gameDto := game.ToGameDto()
 	return &gameDto, nil
@@ -101,20 +79,33 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 
 func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User) (*dto.GameDto, error) {
 	lock := s.editMutex.Lock(id)
-	//log := logging.GetLogger()
 
-	//log.Debugf("Connect user: %d to game: %s", user.Id, id)
+	logrus.Debugf("Connect user: %s to game: %s", user.Id, id)
 
 	var game models.Game
+	var gameDto *dto.GameDto
+	var err error
+
 	if err := s.database.FindById(ctx, id, &game); err != nil {
 		lock.Unlock()
 		return nil, err
 	}
 
 	if game.IsCloseToEnter(user) {
-		//log.Debug("Connection failed, search new game")
+		logrus.Debugf("EnterToGame %s (user=%s) failed, search new game", game.Id, user.Id)
+		gameDto, err = s.Start(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
+		if err != nil {
+			lock.Unlock()
+			return nil, err
+		}
+		if game.FullPlayers() {
+			// now := time.Now()
+			// game.CloseTime = &now
+			// s.database.Update(ctx, &game)
+			// logrus.Debugf("Game %s set closed", game.Id)
+		}
 		lock.Unlock()
-		return s.Start(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
+		return gameDto, nil
 	}
 
 	if err := s.ticketService.CloseTicket(ctx, &game, user); err != nil {
@@ -122,18 +113,20 @@ func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User)
 		lock.Unlock()
 		return nil, err
 	}
-
+	// game
 	game.AddPlayer(user)
-	err := s.database.Update(ctx, &game)
+	err = s.database.Update(ctx, &game)
 	if err != nil {
 		lock.Unlock()
 		return nil, err
 	}
 
 	//log.Debug("User connected")
-	gameDto := game.ToGameDto()
+	gDto := game.ToGameDto()
+	gameDto = &gDto
+
 	lock.Unlock()
-	return &gameDto, nil
+	return gameDto, nil
 }
 
 func (s *GameService) GetGamesForCurrentUser(ctx context.Context, user dto.User) ([]dto.ResultGameDto, error) {
