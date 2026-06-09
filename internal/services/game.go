@@ -36,7 +36,9 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 	game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
 
 	if game == nil {
-		logrus.Debug("Games not found, will create new")
+		logrus.
+			WithField("user", user.Email).
+			Debug("Games not found, will create new")
 
 		game = models.NewGame(request.PlayersAmount)
 		err := s.database.Create(ctx, game)
@@ -80,7 +82,7 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User) (*dto.GameDto, error) {
 	lock := s.editMutex.Lock(id)
 
-	logrus.Debugf("Connect user: %s to game: %s", user.Id, id)
+	logrus.Debugf("EnterToGame: connect user: %s to game: %s", user.Id, id)
 
 	var game models.Game
 	var gameDto *dto.GameDto
@@ -92,9 +94,10 @@ func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User)
 	}
 
 	if game.IsCloseToEnter(user) {
-		logrus.Debugf("EnterToGame %s (user=%s) failed, search new game", game.Id, user.Id)
+		logrus.Debugf("EnterToGame %s (user=%s) closed, search new game", game.Id, user.Id)
 		gameDto, err = s.Start(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
 		if err != nil {
+			logrus.Debugf("EnterToGame %s (user=%s) failed to create a new game (%s)", game.Id, user.Id, err.Error())
 			lock.Unlock()
 			return nil, err
 		}
@@ -105,6 +108,7 @@ func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User)
 			// logrus.Debugf("Game %s set closed", game.Id)
 		}
 		lock.Unlock()
+		logrus.Debugf("EnterToGame %s (user=%s) entered to the game with id %s", game.Id, user.Id, gameDto.Id)
 		return gameDto, nil
 	}
 
