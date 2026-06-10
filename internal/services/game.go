@@ -56,9 +56,13 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 	// lock = s.editMutex.Lock(gameId)
 	err := s.ticketService.CloseTicket(ctx, game, user)
 	if err != nil {
-		logrus.Debug("Ticket close error")
-		if err := s.database.Delete(ctx, game.Id); err != nil {
-			//log.Errorf("Delete:%v", game.Id)
+		logrus.Debugf("Ticket close error: user=%s, gameId=%s, players_amount=%d, error=%s",
+			user.Id, gameId, game.PlayersAmount, err.Error())
+		if newGame {
+			if err := s.database.Delete(ctx, game.Id); err != nil {
+				logrus.Debugf("Game delete error: user=%s, gameId=%s, players_amount=%d, error=%s",
+					user.Id, gameId, game.PlayersAmount, err.Error())
+			}
 		}
 		return nil, err
 	}
