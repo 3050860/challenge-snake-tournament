@@ -244,7 +244,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 
 	if record == nil {
 		return &ehttp.Error{
-			Message: "This game is unavailable for current user",
+			Message: "Current user is not in game",
 			Code:    http.StatusNotFound,
 			Err:     nil,
 		}
@@ -252,7 +252,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 
 	if record.UpdatesAmount >= 3 {
 		return &ehttp.Error{
-			Message: "This game is unavailable for current user",
+			Message: "Max updates amount exceeded",
 			Code:    http.StatusNotFound,
 			Err:     nil,
 		}

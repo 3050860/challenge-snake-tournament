@@ -28,8 +28,9 @@ func NewGameService(database iface.IGameRepository, ticketService iface.ITickets
 func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
 	logrus.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
 
-	lock := s.editMutex.Lock(user.Id)
-	defer lock.Unlock()
+	ulock := s.editMutex.Lock(user.Id)
+	defer ulock.Unlock()
+
 	var gameId string
 	// var newGame bool
 	newGame := false
@@ -47,13 +48,18 @@ func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, 
 		}
 		gameId = game.GetId()
 		newGame = true
+		logrus.
+			WithField("user", user.Email).
+			Debugf("Created new game: %s", gameId)
 	} else {
 		gameId = game.GetId()
 		logrus.Debugf("Game found: [id=%s, start_time=%s, close_time=%s, new=%s] connect user: %d",
 			game.Id, game.StartTime, game.CloseTime, newGame, user.Id)
 	}
 
-	// lock = s.editMutex.Lock(gameId)
+	lock := s.editMutex.Lock(gameId)
+	defer lock.Unlock()
+
 	err := s.ticketService.CloseTicket(ctx, game, user)
 	if err != nil {
 		logrus.Debugf("Ticket close error: user=%s, gameId=%s, players_amount=%d, error=%s",
@@ -104,12 +110,6 @@ func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User)
 			logrus.Debugf("EnterToGame %s (user=%s) failed to create a new game (%s)", game.Id, user.Id, err.Error())
 			lock.Unlock()
 			return nil, err
-		}
-		if game.FullPlayers() {
-			// now := time.Now()
-			// game.CloseTime = &now
-			// s.database.Update(ctx, &game)
-			// logrus.Debugf("Game %s set closed", game.Id)
 		}
 		lock.Unlock()
 		logrus.Debugf("EnterToGame %s (user=%s) entered to the game with id %s", game.Id, user.Id, gameDto.Id)
