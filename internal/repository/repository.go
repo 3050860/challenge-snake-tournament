@@ -9,6 +9,7 @@ import (
 	"github.com/alexsuslov/ehttp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Repository struct {
@@ -50,8 +51,9 @@ func (d *Repository) FindAll(ctx context.Context, filter interface{}, models any
 	return nil
 }
 
-func (d *Repository) Find(ctx context.Context, filter interface{}, model any) (err error) {
-	result := d.collection.FindOne(ctx, filter)
+func (d *Repository) Find(ctx context.Context, filter interface{}, model any,
+	opts ...options.Lister[options.FindOneOptions]) (err error) {
+	result := d.collection.FindOne(ctx, filter, opts...)
 	if result.Err() != nil {
 		return result.Err()
 	}

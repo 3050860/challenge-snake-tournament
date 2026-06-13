@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // GamesDatabase struct represents the database operations for game data
@@ -37,7 +38,8 @@ func (d *GamesDatabase) FindAvailableToEnterGame(ctx context.Context, playerCoun
 		}},
 		{Key: "records", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "user_id", Value: userId}}}}}}},
 	}
-	if err := d.Find(ctx, filter, &game); err != nil {
+	opts := options.FindOne().SetSort(bson.D{{Key: "_id", Value: 1}})
+	if err := d.Find(ctx, filter, &game, opts); err != nil {
 		return nil
 	}
 	return &game

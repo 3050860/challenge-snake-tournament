@@ -15,6 +15,7 @@ type GameService struct {
 	database      iface.IGameRepository
 	ticketService iface.ITickets
 	editMutex     *idMutex.IdMutex
+	userMutex     *idMutex.IdMutex
 }
 
 func NewGameService(database iface.IGameRepository, ticketService iface.ITickets) *GameService {
@@ -22,13 +23,14 @@ func NewGameService(database iface.IGameRepository, ticketService iface.ITickets
 		database:      database,
 		ticketService: ticketService,
 		editMutex:     idMutex.New(),
+		userMutex:     idMutex.New(),
 	}
 }
 
 func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
 	logrus.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
 
-	ulock := s.editMutex.Lock(user.Id)
+	ulock := s.userMutex.Lock(user.Id)
 	defer ulock.Unlock()
 
 	var gameId string
