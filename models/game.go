@@ -74,13 +74,13 @@ func (g *Game) SetId(id string) {
 
 func (g *Game) AddPlayer(user dto.User) {
 	currentTime := time.Now()
-
+	startTime := currentTime.UTC()
 	g.Records = append(g.Records, Record{
 		UserId:        user.Id,
 		CacheUsername: user.Username,
 		UserScore:     nil,
 		UserTime:      nil,
-		StartTime:     &currentTime,
+		StartTime:     &startTime,
 		EndTime:       nil,
 		Prize:         nil,
 		UpdatesAmount: 0,
@@ -266,7 +266,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 	if g.compareRecords(newRecord, *record) {
 		record.UserScore = &request.UserScore
 		record.UserTime = &request.UserTime
-		currentTime := time.Now()
+		currentTime := time.Now().UTC()
 		record.EndTime = &currentTime
 	}
 
