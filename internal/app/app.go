@@ -38,19 +38,16 @@ func NewApp(cfg *config.Config) (App, error) {
 	metricHandler := metrics.Handler{}
 	metricHandler.Register(router)
 
-	logrus.Info("connect mongodb")
+	logrus.Info("connecting to mongodb")
 	mongodbClient, err := mongodb.NewClient(context.Background(), cfg.MongoDB.ConnectString, cfg.MongoDB.Database, cfg.MongoDB.AuthDatabase, cfg.MongoDB.Username, cfg.MongoDB.Password)
 	if err != nil {
 		panic(err)
 	}
 
-	//ticketService := ticket.NewTicketService(cfg)
-	// http ticker service
 	ticketService := hticket.NewHService(cfg.HTicketConfig)
 	gamesRepo := repository.NewGames(mongodbClient, cfg.MongoDB.Collection)
 	gameService := services.NewGameService(gamesRepo, ticketService)
 
-	//userService := service.NewUserService(cfg)
 	handlers.NewRecordHandler(gameService, router)
 
 	return App{
