@@ -9,14 +9,14 @@ serve:
 build: clean bin/snake-tournament
 
 bin/snake-tournament: clean
-	env GOOS=linux GOARCH=amd64 go  build -o bin/snake-tournament cmd/app/main.go
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go  build -o bin/snake-tournament cmd/app/main.go
 
 deploy: bin/snake-tournament
 	mkdir -p /opt/challenge/snake-tournament
-	cd /opt/challenge && docker compose stop
+	cd /opt/challenge && docker compose stop snake-tournament
 	cp bin/snake-tournament /opt/challenge/snake-tournament/
 	#cp .env /opt/challenge/users-service.env
-	cd /opt/challenge && docker compose start
+	cd /opt/challenge && docker compose start snake-tournament
 
 clean:
 	rm -rf bin/* || true

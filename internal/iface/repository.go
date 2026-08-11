@@ -9,7 +9,7 @@ import (
 )
 
 type IRepository interface {
-	FindById(ctx context.Context, id string, res *models.Game) (err error)
+	FindById(ctx context.Context, id string, res any) (err error)
 	Update(ctx context.Context, res IModel) error
 	Create(ctx context.Context, model IModel) error
 	Delete(ctx context.Context, objectID bson.ObjectID) error

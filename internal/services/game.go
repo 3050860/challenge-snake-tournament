@@ -7,135 +7,165 @@ import (
 	"snake-tournament/models"
 	"snake-tournament/models/dto"
 	idMutex "snake-tournament/pkg/id_mutex"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 )
 
 type GameService struct {
-	database      iface.IGameRepository
-	ticketService iface.ITickets
-	editMutex     *idMutex.IdMutex
+	database          iface.IGameRepository
+	ticketService     iface.ITickets
+	editMutex         *idMutex.IdMutex
+	userMutex         *idMutex.IdMutex
+	findOrCreateMutex *idMutex.IdMutex
 }
 
 func NewGameService(database iface.IGameRepository, ticketService iface.ITickets) *GameService {
 	return &GameService{
-		database:      database,
-		ticketService: ticketService,
-		editMutex:     idMutex.New(),
+		database:          database,
+		ticketService:     ticketService,
+		editMutex:         idMutex.New(),
+		userMutex:         idMutex.New(),
+		findOrCreateMutex: idMutex.New(),
 	}
 }
 
 func (s *GameService) Start(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
-	//log := logging.GetLogger()
-	//log.Debugf("Start game by user: %s, game players amount: %d", user.Id, request.PlayersAmount)
+	ulock := s.userMutex.Lock(user.Id)
+	defer ulock.Unlock()
+	return s.startInternal(ctx, request, user)
+}
 
-	game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
+func (s *GameService) startInternal(ctx context.Context, request dto.GameCreateRequest, user dto.User) (*dto.GameDto, error) {
+	GameSegment := strconv.Itoa(request.PlayersAmount)
+	for attempt := 0; attempt < 10; attempt++ { // ограничение попыток
+		// 1. Блокируем поиск/создание
+		atom := s.findOrCreateMutex.Lock(GameSegment)
 
-	if game != nil {
+		game := s.database.FindAvailableToEnterGame(ctx, request.PlayersAmount, user.Id)
+		var newGame bool
+
+		if game == nil {
+			game = models.NewGame(request.PlayersAmount)
+			err := s.database.Create(ctx, game)
+			if err != nil {
+				atom.Unlock()
+				return nil, fmt.Errorf("failed to create game: %w", err)
+			}
+			newGame = true
+		}
+
 		gameId := game.GetId()
+
+		// 2. Освобождаем findOrCreateMutex ДО захвата editMutex
+		atom.Unlock()
+
+		// 3. Блокируем конкретную игру
 		lock := s.editMutex.Lock(gameId)
-		defer lock.Unlock()
 
-		err := s.database.FindById(ctx, gameId, game)
-		if err != nil {
+		// 4. Перечитываем игру ПОСЛЕ захвата блокировки
+		if err := s.database.FindById(ctx, gameId, game); err != nil {
+			lock.Unlock()
 			return nil, err
 		}
 
-		//log.Debugf("Game found: %s, connect user: %d", game.Id, user.Id)
-		err = s.ticketService.CloseTicket(ctx, game, user)
+		// 5. Проверяем, есть ли место
+		if len(game.Records) >= game.PlayersAmount {
+			lock.Unlock()
+			logrus.Debugf("Game %s is full, retrying...", gameId)
+			continue // повторить попытку
+		}
+
+		// 6. Закрываем тикет
+		err := s.ticketService.CloseTicket(ctx, game, user)
 		if err != nil {
-			//log.Debug("Ticket close error")
+			lock.Unlock()
+			logrus.Debugf("Ticket close failed for game %s, retrying...", gameId)
+
+			// Удаляем новую игру только если в ней никого нет
+			if newGame && len(game.Records) == 0 {
+				s.database.Delete(ctx, game.Id)
+			}
+			// continue
 			return nil, err
 		}
+
+		// 7. Тикет закрыт, добавляем игрока
 		game.AddPlayer(user)
-
 		err = s.database.Update(ctx, game)
 		if err != nil {
+			lock.Unlock()
 			return nil, err
 		}
-		//log.Debug("User connected")
 
+		lock.Unlock()
 		gameDto := game.ToGameDto()
 		return &gameDto, nil
 	}
 
-	//log.Debug("Game not found, create new")
-
-	game = models.NewGame(request.PlayersAmount)
-
-	err := s.database.Create(ctx, game)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create record. error: %w", err)
-	}
-
-	gameId := game.GetId()
-	lock := s.editMutex.Lock(gameId)
-	defer lock.Unlock()
-
-	err = s.database.FindById(ctx, gameId, game)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.ticketService.CloseTicket(ctx, game, user)
-	if err != nil {
-		//log.Debug("Ticket close error")
-		if err := s.database.Delete(ctx, game.Id); err != nil {
-			//log.Errorf("Delete:%v", game.Id)
-		}
-		return nil, err
-	}
-
-	//log.Debugf("Game created: %s, connect user: %d", game.Id, user.Id)
-
-	game.AddPlayer(user)
-
-	err = s.database.Update(ctx, game)
-	if err != nil {
-		return nil, err
-	}
-
-	//log.Debug("User connected")
-
-	gameDto := game.ToGameDto()
-	return &gameDto, nil
+	// Если все попытки не удались (маловероятно, но возможно)
+	return nil, fmt.Errorf("failed to join game after multiple attempts")
 }
 
 func (s *GameService) EnterToGame(ctx context.Context, id string, user dto.User) (*dto.GameDto, error) {
-	lock := s.editMutex.Lock(id)
-	//log := logging.GetLogger()
+	ulock := s.userMutex.Lock(user.Id)
+	defer ulock.Unlock()
 
-	//log.Debugf("Connect user: %d to game: %s", user.Id, id)
-
+	// Первая проверка без блокировки
 	var game models.Game
 	if err := s.database.FindById(ctx, id, &game); err != nil {
-		lock.Unlock()
 		return nil, err
 	}
 
+	// Если игра закрыта, сразу идём в startInternal
 	if game.IsCloseToEnter(user) {
-		//log.Debug("Connection failed, search new game")
-		lock.Unlock()
-		return s.Start(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
+		return s.startInternal(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
 	}
 
-	if err := s.ticketService.CloseTicket(ctx, &game, user); err != nil {
-		//log.Debug("Ticket close error")
+	// Игра открыта, пробуем войти
+	return s.enterToOpenGameInternal(ctx, id, &game, user)
+}
+
+func (s *GameService) enterToOpenGameInternal(ctx context.Context, id string, game *models.Game, user dto.User) (*dto.GameDto, error) {
+	for attempt := 0; attempt < 10; attempt++ {
+		lock := s.editMutex.Lock(id)
+
+		// Перечитываем игру ПОСЛЕ захвата блокировки
+		if err := s.database.FindById(ctx, id, game); err != nil {
+			lock.Unlock()
+			return nil, err
+		}
+
+		// Повторная проверка после блокировки
+		if game.IsCloseToEnter(user) {
+			lock.Unlock()
+			// Игра закрылась, идём в startInternal
+			return s.startInternal(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
+		}
+
+		// Закрываем тикет
+		err := s.ticketService.CloseTicket(ctx, game, user)
+		if err != nil {
+			lock.Unlock()
+			// Тикет не закрылся, идём в startInternal (попробуем другую игру)
+			// return s.startInternal(ctx, dto.GameCreateRequest{PlayersAmount: game.PlayersAmount}, user)
+			return nil, err
+		}
+
+		// Добавляем игрока
+		game.AddPlayer(user)
+		err = s.database.Update(ctx, game)
+		if err != nil {
+			lock.Unlock()
+			return nil, err
+		}
+
 		lock.Unlock()
-		return nil, err
+		gameDto := game.ToGameDto()
+		return &gameDto, nil
 	}
 
-	game.AddPlayer(user)
-	err := s.database.Update(ctx, &game)
-	if err != nil {
-		lock.Unlock()
-		return nil, err
-	}
-
-	//log.Debug("User connected")
-	gameDto := game.ToGameDto()
-	lock.Unlock()
-	return &gameDto, nil
+	return nil, fmt.Errorf("failed to enter game after multiple attempts")
 }
 
 func (s *GameService) GetGamesForCurrentUser(ctx context.Context, user dto.User) ([]dto.ResultGameDto, error) {

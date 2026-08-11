@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"snake-tournament/models"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // GamesDatabase struct represents the database operations for game data
@@ -24,14 +26,20 @@ func NewGames(database *mongo.Database, collection string) *GamesDatabase {
 // It looks for games with exact player count and where the user hasn't joined yet
 func (d *GamesDatabase) FindAvailableToEnterGame(ctx context.Context, playerCount int, userId string) *models.Game {
 	var game models.Game
+	now := time.Now()
 	filter := bson.D{
 		{Key: "players_amount", Value: playerCount},
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}}},
+			bson.D{{Key: "close_time", Value: nil}},
+		}},
 		{Key: "$expr", Value: bson.D{
-			{Key: "$lte", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, playerCount}},
+			{Key: "$lt", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, playerCount}},
 		}},
 		{Key: "records", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "user_id", Value: userId}}}}}}},
 	}
-	if err := d.Find(ctx, filter, &game); err != nil {
+	opts := options.FindOne().SetSort(bson.D{{Key: "_id", Value: 1}})
+	if err := d.Find(ctx, filter, &game, opts); err != nil {
 		return nil
 	}
 	return &game
@@ -41,8 +49,13 @@ func (d *GamesDatabase) FindAvailableToEnterGame(ctx context.Context, playerCoun
 // It looks for games where the user hasn't joined yet and there are still spots available
 func (d *GamesDatabase) FindAvailableToEnterGames(ctx context.Context, userId string) []models.Game {
 	var games []models.Game
+	now := time.Now()
 
 	filter := bson.D{
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "close_time", Value: bson.D{{Key: "$gt", Value: now}}}},
+			bson.D{{Key: "close_time", Value: nil}},
+		}},
 		{Key: "$expr", Value: bson.D{
 			{Key: "$lt", Value: bson.A{bson.D{{Key: "$size", Value: "$records"}}, "$players_amount"}},
 		}},

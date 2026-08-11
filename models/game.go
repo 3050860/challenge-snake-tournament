@@ -74,13 +74,13 @@ func (g *Game) SetId(id string) {
 
 func (g *Game) AddPlayer(user dto.User) {
 	currentTime := time.Now()
-
+	startTime := currentTime.UTC()
 	g.Records = append(g.Records, Record{
 		UserId:        user.Id,
 		CacheUsername: user.Username,
 		UserScore:     nil,
 		UserTime:      nil,
-		StartTime:     &currentTime,
+		StartTime:     &startTime,
 		EndTime:       nil,
 		Prize:         nil,
 		UpdatesAmount: 0,
@@ -125,6 +125,9 @@ func (g *Game) IsCloseToEnter(user dto.User) bool {
 	return len(g.Records) >= g.PlayersAmount
 }
 
+func (g *Game) FullPlayers() bool {
+	return len(g.Records) >= g.PlayersAmount
+}
 func (g *Game) FindPlayerPlace(user dto.User) int {
 	return slices.IndexFunc(g.GetSortedRecords(), func(current Record) bool {
 		return current.UserId == user.Id
@@ -241,7 +244,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 
 	if record == nil {
 		return &ehttp.Error{
-			Message: "This game is unavailable for current user",
+			Message: "Current user is not in game",
 			Code:    http.StatusNotFound,
 			Err:     nil,
 		}
@@ -249,7 +252,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 
 	if record.UpdatesAmount >= 3 {
 		return &ehttp.Error{
-			Message: "This game is unavailable for current user",
+			Message: "Max updates amount exceeded",
 			Code:    http.StatusNotFound,
 			Err:     nil,
 		}
@@ -263,7 +266,7 @@ func (g *Game) PasteResults(user dto.User, request dto.RecordCreateRequest) erro
 	if g.compareRecords(newRecord, *record) {
 		record.UserScore = &request.UserScore
 		record.UserTime = &request.UserTime
-		currentTime := time.Now()
+		currentTime := time.Now().UTC()
 		record.EndTime = &currentTime
 	}
 
